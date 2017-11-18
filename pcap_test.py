@@ -1,15 +1,21 @@
-import dpkt
 import datetime
 import socket
-from dpkt.compat import compat_ord
-from attack import AttackEvents
 import sys
 import time
+
+import dpkt
+from dpkt.compat import compat_ord
+
+from attack import AttackEvents
+
+from db import session
+import db
 
 
 class ProcessPcap:
     def __init__(self, filename, timeout=60.000000):
         self.filename = filename
+        self.session = session
         self.current_event = None
         self.next_event_frame = 0
         self.events = []
@@ -50,16 +56,23 @@ class ProcessPcap:
                 self.events.append(self.current_event)
                 for k, v in self.ddos_occurrences.items():
                     for ddos in v:
+                        print(self.check_timer)
+                        print(self.print_timer)
+                        input()
                         print("DDoS: {}".format(ddos.ip))
                         print("UDP: {}  TCP: {}  ICMP: {}".format(ddos.udp_count, ddos.tcp_count, ddos.icmp_count))
                         print("--------------------------------\n")
             self.next_event_frame = current_time + self.timeout
             start1 = time.time()
-            self.current_event = AttackEvents(current_time, self.timeout)
+            self.current_event = AttackEvents(current_time)
             end1 = time.time()
             self.new_attack_timer += end1 - start1
+
         end = time.time()
         self.check_timer += end - start
+
+    # def add_ddos(self):
+
 
 
 def mac_addr(address):

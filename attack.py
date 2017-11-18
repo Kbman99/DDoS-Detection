@@ -28,9 +28,17 @@ class AttackEvents:
     """
     Stores attack events for a given timeframe
     """
-    def __init__(self, timestamp, timeout):
+    def __init__(self, timestamp):
         self.attacks = {}
-        self.start_time = timestamp - timeout
+        self._start_time = int(timestamp)
+
+    @property
+    def start_time(self):
+        return self._start_time
+
+    @start_time.setter
+    def start_time(self, time):
+        self._start_time = int(time)
 
     def new_event(self, src_ip, protocol):
         if protocol == 6:
@@ -51,4 +59,4 @@ class AttackEvents:
         for k, v in self.attacks.items():
             if v.infer_ddos():
                 ddos_attacks.append(v)
-        pcap_processor.ddos_occurrences[self.start_time] = ddos_attacks
+        pcap_processor.ddos_occurrences[int(self.start_time)] = ddos_attacks

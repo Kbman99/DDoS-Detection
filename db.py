@@ -1,19 +1,20 @@
 from sqlalchemy import create_engine, Column, BIGINT, Integer, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine.url import URL
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker
 
 import config
 
 DeclarativeBase = declarative_base()
 
+engine = create_engine(URL(**config.DATABASE))
+Session = sessionmaker(bind=engine)
+session = Session()
 
-def db_connect():
-    """
-    Performs database connection using database settings from config.py.
-    Returns sqlalchemy engine instance
-    """
-    return create_engine(URL(**config.DATABASE))
+
+# class SessionManager:
+#     def __init__(self):
+#         self.session = Session()
 
 
 def create_tables(engine):
@@ -21,31 +22,54 @@ def create_tables(engine):
     DeclarativeBase.metadata.create_all(engine)
 
 
+def create_timeframe(**args):
+    # Pass in process.current_event.start_time
+    return Timeframes(*args)
+
+
+def create_victim(**args):
+    return Victims(*args)
+
+
+def add_table(session):
+    session.add()
+
+
 class Timeframes(DeclarativeBase):
     """Sqlalchemy timeframes model"""
+    def __init__(self, timeframe, tcp, udp, icmp, ip):
+        self.timeframe = timeframe
+        self.tcp_total = tcp
+        self.udp_total = udp
+        self.icmp_total = icmp
+        self.ip_total = ip
+
     __tablename__ = 'timeframes'
 
     timeframe = Column('timeframe', BIGINT, primary_key=True)
-    tcp_total = Column('tcp_total', Integer, nullable=True)
-    udp_total = Column('udp_total', Integer, nullable=True)
-    icmp_total = Column('icmp_total', Integer, nullable=True)
-    ip_total = Column('ip_total', Integer, nullable=True)
+    tcp_total = Column('tcp_total', Integer, nullable=True, default=0)
+    udp_total = Column('udp_total', Integer, nullable=True, default=0)
+    icmp_total = Column('icmp_total', Integer, nullable=True, default=0)
+    ip_total = Column('ip_total', Integer, nullable=True, default=0)
 
 
 class Victims(DeclarativeBase):
     """Sqlalchemy victims model"""
+    def __init__(self, ip, tcp, udp, icmp, timeframe):
+        self.ip = ip
+        self.tcp_count = tcp
+        self.udp_count = udp
+        self.icmp_count = icmp
+        self.timeframe = timeframe
+
     __tablename__ = 'victims'
 
     ip = Column('ip', String, primary_key=True)
-    tcp_count = Column('tcp_count', Integer, nullable=True)
-    udp_count = Column('udp_count', Integer, nullable=True)
-    icmp_count = Column('icmp_count', Integer, nullable=True)
+    tcp_count = Column('tcp_count', Integer, nullable=True, default=0)
+    udp_count = Column('udp_count', Integer, nullable=True, default=0)
+    icmp_count = Column('icmp_count', Integer, nullable=True, default=0)
     timeframe = Column('timeframe', BIGINT, ForeignKey("timeframes.timeframe"), primary_key=True)
 
-
-db = db_connect()
-
-session = Session(bind=db)
 
 # timeframe = Timeframes(timeframe=1245345234634, tcp_total=0, udp_total=0, icmp_total=0, ip_total=1)
 # session.add(timeframe)
