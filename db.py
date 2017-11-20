@@ -80,6 +80,5 @@ class Victims(DeclarativeBase):
 # session.add(victim)
 #
 # session.commit()
-for v in session.query(Timeframes):
-    session.delete(v)
-session.commit()
+# l = session.query(Timeframes).filter_by(timeframe=1385856000).first()
+# input()

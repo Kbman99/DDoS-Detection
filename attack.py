@@ -30,15 +30,7 @@ class AttackEvents:
     """
     def __init__(self, timestamp):
         self.attacks = {}
-        self._start_time = int(timestamp)
-
-    @property
-    def start_time(self):
-        return self._start_time
-
-    @start_time.setter
-    def start_time(self, time):
-        self._start_time = int(time)
+        self.start_time = int(timestamp)
 
     def new_event(self, src_ip, protocol):
         if protocol == 6:
@@ -49,7 +41,7 @@ class AttackEvents:
             if src_ip not in self.attacks:
                 self.attacks[src_ip] = Attack(src_ip)
             self.attacks[src_ip].udp()
-        elif protocol == 58:
+        elif protocol == 58 or protocol == 1:
             if src_ip not in self.attacks:
                 self.attacks[src_ip] = Attack(src_ip)
             self.attacks[src_ip].icmp()
