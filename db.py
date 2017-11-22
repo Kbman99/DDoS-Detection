@@ -1,7 +1,8 @@
-from sqlalchemy import create_engine, Column, BIGINT, Integer, String, ForeignKey, Float
+from sqlalchemy import create_engine, Column, BIGINT, Integer, String, ForeignKey, Numeric
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine.url import URL
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import func
 
 import config
 
@@ -63,8 +64,8 @@ class UniqueVictims(DeclarativeBase):
     __tablename__ = 'uniquevictims'
 
     ip = Column('ip', String, primary_key=True)
-    lat = Column('lat', Float(6), default=0)
-    long = Column('long', Float(6), default=0)
+    lat = Column('lat', Numeric(10, 6), default=0)
+    long = Column('long', Numeric(10, 6), default=0)
 
 
 class Victims(DeclarativeBase):
@@ -85,6 +86,47 @@ class Victims(DeclarativeBase):
     timeframe = Column('timeframe', BIGINT, ForeignKey("timeframes.timeframe"), primary_key=True)
 
 
+class UniqueLocation(DeclarativeBase):
+    """Sqlalchemy Unique Location models"""
+    def __init__(self, lat, long, ip_count, tcp_count, udp_count, icmp_count):
+        self.lat = lat
+        self.long = long
+        self.ip_count = ip_count
+        self.tcp_count = tcp_count
+        self.udp_count = udp_count
+        self.icmp_count = icmp_count
+
+    __tablename__ = 'unique_location'
+
+    lat = Column('lat', Numeric(10, 6), primary_key=True)
+    long = Column('long', Numeric(10, 6), primary_key=True)
+    ip_count = Column('ip_count', Integer)
+    tcp_count = Column('tcp_count', Integer)
+    udp_count = Column('udp_count', Integer)
+    icmp_count = Column('icmp_count', Integer)
+
+l = session.query(Timeframes).all()
+
+for i in l:
+    print(i)
+# query = session.query(UniqueVictims.lat, UniqueVictims.long).distinct().all()
+# unique_loc = []
+# count = 0
+# for q in query:
+#     victims = session.query(UniqueVictims).filter_by(lat=q.lat, long=q.long).all()
+#     tcp_total = udp_total = icmp_total = 0
+#     ip_count = len(victims)
+#     for victim in victims:
+#         # totals = session.query(Victims.ip).label('sum').filter_by(ip=victim.ip).all()
+#         tcp_total += session.query(func.sum(Victims.tcp_count).filter(Victims.ip == victim.ip)).scalar()
+#         udp_total += session.query(func.sum(Victims.udp_count).filter(Victims.ip == victim.ip)).scalar()
+#         icmp_total += session.query(func.sum(Victims.icmp_count).filter(Victims.ip == victim.ip)).scalar()
+#     unique_loc.append(UniqueLocation(q.lat, q.long, ip_count, tcp_total, udp_total, icmp_total))
+#     count += 1
+#     print("Done with {}".format(count))
+#
+# session.bulk_save_objects(unique_loc)
+# session.commit()
 # q = session.query(Victims.ip.distinct().label("ip"))
 #
 # ips = [row.ip for row in q.all()]
