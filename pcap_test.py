@@ -5,17 +5,18 @@ import time
 import os
 
 import dpkt
+from dpkt.udp import UDP
+from dpkt.icmp import ICMP
 from dpkt.compat import compat_ord
 
 from attack import AttackEvents
+from attack import Events
 
 from db import session
 import db
-from db import Victims, Timeframes
+from db import Victims, Timeframes, UniqueVictims
 
 from sqlalchemy.exc import IntegrityError
-
-from tqdm import tqdm
 
 
 class ProcessPcap:
@@ -35,6 +36,9 @@ class ProcessPcap:
         self.process_timer = 0
         self.check_timer = 0
         self.new_attack_timer = 0
+        self.new_event_timer = 0
+        self.main_timer = 0
+        self.if_timer = 0
 
     def read_pcap(self):
         with open(self.filename, 'rb') as f:
@@ -42,21 +46,22 @@ class ProcessPcap:
             self.process_packets()
 
     def process_packets(self):
-        # tq = tqdm(self.pcap, total=os.path.getsize(self.filename), unit='B')
-        # buf_total = 0
-        # for timestamp, buf in tq:
         for timestamp, buf in self.pcap:
-            # print(len(buf))
             start = time.time()
             self.processed_data += sys.getsizeof(buf)
             self.check_time(timestamp)
             self.processed_packets += 1
-            dst_ip, protocol = process_packets(self, buf, timestamp)
-            if dst_ip is None or protocol is None:
+            start1 = time.time()
+            ip_dst, ip_src, data = process_packets(buf, timestamp)
+            self.process_timer += time.time() - start1
+            start3 = time.time()
+            if ip_dst is None or ip_src is None or data is None:
                 continue
-            self.current_event.new_event(inet_to_str(dst_ip), protocol)
-            # buf_total += len(buf)
-            # tq.update(len(buf))
+            self.if_timer += time.time() - start3
+            start2 = time.time()
+            self.current_event.add_attack(ip_src, ip_dst, data)
+            self.new_attack_timer += time.time() - start2
+            self.main_timer += time.time() - start
 
     def check_time(self, current_time):
         start = time.time()
@@ -65,60 +70,99 @@ class ProcessPcap:
                 print("Processed data size: {}".format(self.processed_data))
                 # Create check here to see if any DDoSes occurred
                 self.current_event.filter_attacks(self)
-                self.events.append(self.current_event)
-                # for k, v in self.ddos_occurrences.items():
-                #     for ddos in v:
-                        # print(self.check_timer)
-                        # print(self.print_timer)
-                        # print("DDoS: {}".format(ddos.ip))
-                        # print("UDP: {}  TCP: {}  ICMP: {}".format(ddos.udp_count, ddos.tcp_count, ddos.icmp_count))
-                        # print("--------------------------------\n")
-                # TODO: Add DDoS Occurences to database at current time
-                self.add_ddos()
+                self.db_add()
             self.next_event_frame = current_time + self.timeout
             start1 = time.time()
-            self.current_event = AttackEvents(current_time)
+            # self.current_event = AttackEvents(current_time)
+            self.current_event = Events(current_time)
             end1 = time.time()
-            self.new_attack_timer += end1 - start1
+            self.new_event_timer += end1 - start1
 
         end = time.time()
         self.check_timer += end - start
 
-    def add_ddos(self):
+    def db_add(self):
         """
         Adds the current time frame and all DDoS occurences for the given time frame to the database
 
         :return:
         """
-        ddos_events = self.ddos_occurrences[self.current_event.start_time]
+        time = self.current_event.start_time
+        ddos_events = self.ddos_occurrences[time]
         ip_total, tcp_total, udp_total, icmp_total = self.totals(ddos_events)
-        timeframe = Timeframes(timeframe=self.current_event.start_time, tcp=tcp_total,
-                               udp=udp_total, icmp=icmp_total, ip=ip_total)
-        if self.session.query(Timeframes).filter_by(timeframe=self.current_event.start_time).first():
+        time_frame = Timeframes(time_frame=time, tcp=tcp_total,udp=udp_total, icmp=icmp_total,
+                                ip=ip_total)
+        if self.session.query(Timeframes).filter_by(time_frame=time).first():
             return
         else:
             try:
-                self.session.add(timeframe)
+                self.session.add(time_frame)
                 self.session.commit()
-                attack_objects = []
-                for ddos in ddos_events:
-                    attack_objects.append(Victims(timeframe=self.current_event.start_time, ip=ddos.ip, tcp=ddos.tcp_count,
-                                           udp=ddos.udp_count, icmp=ddos.icmp_count))
-                self.session.bulk_save_objects(attack_objects)
-                self.session.commit()
+                # unique_victims = []
+                victims = []
+                for dst_ip, sources in ddos_events.items():
+                    for source in sources:
+                        if not self.session.query(UniqueVictims).filter_by(ip=source.src_ip).first():
+                            # unique_victims.append(UniqueVictims(ip=source.src_ip))
+                            session.add(UniqueVictims(ip=source.src_ip))
+                            session.commit()
+                        victims.append(Victims(ip=source.src_ip, tcp=source.tcp_count, udp=source.udp_count,
+                                               icmp=source.icmp_count, time_frame=time))
+                # session.bulk_save_objects(unique_victims)
+                # session.commit()
+                session.bulk_save_objects(victims)
+                session.commit()
             except IntegrityError as e:
                 print("Integrity Error occurred when inserting new timeframe or ddos objects")
                 print("The keys already exist in the database")
                 return
 
+# def add_ddos(self):
+#     """
+#     Adds the current time frame and all DDoS occurences for the given time frame to the database
+#
+#     :return:
+#     """
+#     ddos_events = self.ddos_occurrences[self.current_event.start_time]
+#     ip_total, tcp_total, udp_total, icmp_total = self.totals(ddos_events)
+#     timeframe = Timeframes(timeframe=self.current_event.start_time, tcp=tcp_total,
+#                            udp=udp_total, icmp=icmp_total, ip=ip_total)
+#     if self.session.query(Timeframes).filter_by(timeframe=self.current_event.start_time).first():
+#         return
+#     else:
+#         try:
+#             self.session.add(timeframe)
+#             self.session.commit()
+#             attack_objects = []
+#             for ddos in ddos_events:
+#                 attack_objects.append(Victims(timeframe=self.current_event.start_time, ip=ddos.ip, tcp=ddos.tcp_count,
+#                                        udp=ddos.udp_count, icmp=ddos.icmp_count))
+#             self.session.bulk_save_objects(attack_objects)
+#             self.session.commit()
+#         except IntegrityError as e:
+#             print("Integrity Error occurred when inserting new timeframe or ddos objects")
+#             print("The keys already exist in the database")
+#             return
+
     def totals(self, ddoses):
         ip_total = tcp_total = udp_total = icmp_total = 0
-        for ddos in ddoses:
-            ip_total += 1
-            tcp_total += ddos.tcp_count
-            udp_total += ddos.udp_count
-            icmp_total += ddos.icmp_count
+        for k, sources in ddoses.items():
+            for s in sources:
+                tcp_total += s.tcp_count
+                udp_total += s.udp_count
+                icmp_total += s.icmp_count
+                ip_total += 1
         return ip_total, tcp_total, udp_total, icmp_total
+
+
+    # def totals(self, ddoses):
+    #     ip_total = tcp_total = udp_total = icmp_total = 0
+    #     for ddos in ddoses:
+    #         ip_total += 1
+    #         tcp_total += ddos.tcp_count
+    #         udp_total += ddos.udp_count
+    #         icmp_total += ddos.icmp_count
+    #     return ip_total, tcp_total, udp_total, icmp_total
 
 
 def mac_addr(address):
@@ -145,51 +189,28 @@ def inet_to_str(inet):
         return socket.inet_ntop(socket.AF_INET6, inet)
 
 
-def process_packets(processer, buf, timestamp):
+def process_packets(buf, timestamp):
     """Process and print out information about each packet in a pcap
        Args:
            pcap: dpkt pcap reader object (dpkt.pcap.Reader)
     """
-    # For each packet in the pcap process the contents
-    # Print out the timestamp in UTC
-    start = time.time()
-    # print('Timestamp: ', str(datetime.datetime.utcfromtimestamp(timestamp)))
-
-    # Unpack the Ethernet frame (mac src/dst, ethertype)
     eth = dpkt.ethernet.Ethernet(buf)
-    # print('Ethernet Frame: ', mac_addr(eth.src), mac_addr(eth.dst), eth.type)
-
     # Make sure the Ethernet data contains an IP packet
     if not isinstance(eth.data, dpkt.ip.IP):
         print('Non IP Packet type not supported {}\n'.format(eth.data.__class__.__name__))
-        return None, None
+        return None, None, None
 
     # Now unpack the data within the Ethernet frame (the IP packet)
     # Pulling out src, dst, length, fragment info, TTL, and Protocol
     ip = eth.data
-
-    # Pull out fragment information (flags and offset all packed into off field, so use bitmasks)
-    # do_not_fragment = bool(ip.off & dpkt.ip.IP_DF)
-    # more_fragments = bool(ip.off & dpkt.ip.IP_MF)
-    # fragment_offset = ip.off & dpkt.ip.IP_OFFMASK
-
-    # Print out the info
-    # print('IP: {} -> {}  (len={} ttl={} DF={} MF={} offset={})'.format
-    #       (inet_to_str(ip.src), inet_to_str(ip.dst), ip.len, ip.ttl,
-    #        do_not_fragment, more_fragments, fragment_offset))
-    # print('IP: {} -> {}  )'.format(inet_to_str(ip.src), inet_to_str(ip.dst)))
-    #
-    # print('Protocol: {}\n'.format(ip.p))
-    end = time.time()
-    processer.print_timer += end - start
-    return ip.dst, ip.p
+    data = ip.data
+    # if isinstance(data, ICMP) and data.type is dpkt.icmp.ICMP_UNREACH_PORT:
+    #     print("ISSA UDP ATTACK")
+    return inet_to_str(ip.dst), inet_to_str(ip.src), data
 
 
 def test():
     """Open up a test pcap file and print out the packets"""
-    # with open('14.pcap', 'rb') as f:
-    #     pcap = dpkt.pcapng.Reader(f)
-    #     process_packets(pcap)
     pcap_processor = ProcessPcap('14.pcap')
     pcap_processor.read_pcap()
 

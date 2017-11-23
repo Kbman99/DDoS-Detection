@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, Column, BIGINT, Integer, String, ForeignKey, Numeric
+from sqlalchemy import create_engine, Column, BIGINT, Integer, \
+    String, ForeignKey, Numeric, Sequence
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine.url import URL
 from sqlalchemy.orm import sessionmaker
@@ -11,11 +12,6 @@ DeclarativeBase = declarative_base()
 engine = create_engine(URL(**config.DATABASE))
 Session = sessionmaker(bind=engine)
 session = Session()
-
-
-# class SessionManager:
-#     def __init__(self):
-#         self.session = Session()
 
 
 def create_tables(engine):
@@ -38,16 +34,16 @@ def add_table(session):
 
 class Timeframes(DeclarativeBase):
     """Sqlalchemy timeframes model"""
-    def __init__(self, timeframe, tcp, udp, icmp, ip):
-        self.timeframe = timeframe
+    def __init__(self, time_frame, tcp, udp, icmp, ip):
+        self.time_frame = int(time_frame)
         self.tcp_total = tcp
         self.udp_total = udp
         self.icmp_total = icmp
         self.ip_total = ip
 
-    __tablename__ = 'timeframes'
+    __tablename__ = 'time_frames'
 
-    timeframe = Column('timeframe', BIGINT, primary_key=True)
+    time_frame = Column('time_frame', BIGINT, primary_key=True)
     tcp_total = Column('tcp_total', Integer, nullable=True, default=0)
     udp_total = Column('udp_total', Integer, nullable=True, default=0)
     icmp_total = Column('icmp_total', Integer, nullable=True, default=0)
@@ -56,59 +52,69 @@ class Timeframes(DeclarativeBase):
 
 class UniqueVictims(DeclarativeBase):
     """Sqlalchemy unique victims model"""
-    def __init__(self, ip, lat, long):
+    def __init__(self, ip, lat=0, long=0):
         self.ip = ip
         self.lat = lat
         self.long = long
+        self.udp_count = 0
+        self.tcp_count = 0
+        self.icmp_count = 0
+        self.timeframe_count = 0
+        self.rate = 0
 
-    __tablename__ = 'uniquevictims'
+    __tablename__ = 'unique_victims'
 
     ip = Column('ip', String, primary_key=True)
     lat = Column('lat', Numeric(10, 6), default=0)
     long = Column('long', Numeric(10, 6), default=0)
+    udp_count = Column('udp_count', Integer, default=0)
+    tcp_count = Column('tcp_count', Integer, default=0)
+    icmp_count = Column('icmp_count', Integer, default=0)
+    time_frame_count = Column('time_frame_count', Integer, default=0)
+    rate = Column('rate', Numeric(10, 2), default=0)
 
 
 class Victims(DeclarativeBase):
     """Sqlalchemy victims model"""
-    def __init__(self, ip, tcp, udp, icmp, timeframe):
+    def __init__(self, ip, tcp, udp, icmp, time_frame):
         self.ip = ip
         self.tcp_count = tcp
         self.udp_count = udp
         self.icmp_count = icmp
-        self.timeframe = timeframe
+        self.time_frame = time_frame
 
     __tablename__ = 'victims'
 
-    ip = Column('ip', String, ForeignKey("uniquevictims.ip"), primary_key=True)
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    ip = Column('ip', String, ForeignKey("unique_victims.ip"), primary_key=True)
     tcp_count = Column('tcp_count', Integer, nullable=True, default=0)
     udp_count = Column('udp_count', Integer, nullable=True, default=0)
     icmp_count = Column('icmp_count', Integer, nullable=True, default=0)
-    timeframe = Column('timeframe', BIGINT, ForeignKey("timeframes.timeframe"), primary_key=True)
+    time_frame = Column('time_frame', BIGINT, ForeignKey("time_frames.time_frame"), primary_key=True)
 
+DeclarativeBase.metadata.create_all(bind=engine)
+# DeclarativeBase.metadata.create_all(bind=engine)
+# DeclarativeBase.metadata.tables['victims'].create(bind=engine)
+# session.commit()
+# class UniqueLocation(DeclarativeBase):
+#     """Sqlalchemy Unique Location models"""
+#     def __init__(self, lat, long, ip_count, tcp_count, udp_count, icmp_count):
+#         self.lat = lat
+#         self.long = long
+#         self.ip_count = ip_count
+#         self.tcp_count = tcp_count
+#         self.udp_count = udp_count
+#         self.icmp_count = icmp_count
+#
+#     __tablename__ = 'unique_location'
+#
+#     lat = Column('lat', Numeric(10, 6), primary_key=True)
+#     long = Column('long', Numeric(10, 6), primary_key=True)
+#     ip_count = Column('ip_count', Integer)
+#     tcp_count = Column('tcp_count', Integer)
+#     udp_count = Column('udp_count', Integer)
+#     icmp_count = Column('icmp_count', Integer)
 
-class UniqueLocation(DeclarativeBase):
-    """Sqlalchemy Unique Location models"""
-    def __init__(self, lat, long, ip_count, tcp_count, udp_count, icmp_count):
-        self.lat = lat
-        self.long = long
-        self.ip_count = ip_count
-        self.tcp_count = tcp_count
-        self.udp_count = udp_count
-        self.icmp_count = icmp_count
-
-    __tablename__ = 'unique_location'
-
-    lat = Column('lat', Numeric(10, 6), primary_key=True)
-    long = Column('long', Numeric(10, 6), primary_key=True)
-    ip_count = Column('ip_count', Integer)
-    tcp_count = Column('tcp_count', Integer)
-    udp_count = Column('udp_count', Integer)
-    icmp_count = Column('icmp_count', Integer)
-
-l = session.query(Timeframes).all()
-
-for i in l:
-    print(i)
 # query = session.query(UniqueVictims.lat, UniqueVictims.long).distinct().all()
 # unique_loc = []
 # count = 0
