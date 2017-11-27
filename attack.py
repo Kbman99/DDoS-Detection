@@ -112,7 +112,7 @@ class Attack:
         self.icmp_count += 1
 
     def infer_ddos(self):
-        if self.icmp_count | self.udp_count | self.tcp_count >= 10:
+        if self.icmp_count >= 10 or self.udp_count >10 or self.tcp_count >= 10:
             return self
         else:
             return None

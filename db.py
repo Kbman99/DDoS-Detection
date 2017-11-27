@@ -61,6 +61,9 @@ class UniqueVictims(DeclarativeBase):
         self.icmp_count = 0
         self.timeframe_count = 0
         self.rate = 0
+        self.city = None
+        self.country = None
+        self.isp = None
 
     __tablename__ = 'unique_victims'
 
@@ -72,6 +75,9 @@ class UniqueVictims(DeclarativeBase):
     icmp_count = Column('icmp_count', Integer, default=0)
     time_frame_count = Column('time_frame_count', Integer, default=0)
     rate = Column('rate', Numeric(10, 2), default=0)
+    city = Column('city', String)
+    country = Column('country', String)
+    isp = Column('isp', String)
 
 
 class Victims(DeclarativeBase):
@@ -86,7 +92,7 @@ class Victims(DeclarativeBase):
     __tablename__ = 'victims'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    ip = Column('ip', String, ForeignKey("unique_victims.ip"), primary_key=True)
+    ip = Column('ip', String, ForeignKey("unique_victims.ip", onupdate="CASCADE", ondelete="CASCADE"), primary_key=True)
     tcp_count = Column('tcp_count', Integer, nullable=True, default=0)
     udp_count = Column('udp_count', Integer, nullable=True, default=0)
     icmp_count = Column('icmp_count', Integer, nullable=True, default=0)
