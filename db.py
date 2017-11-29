@@ -98,7 +98,7 @@ class Victims(DeclarativeBase):
     icmp_count = Column('icmp_count', Integer, nullable=True, default=0)
     time_frame = Column('time_frame', BIGINT, ForeignKey("time_frames.time_frame"), primary_key=True)
 
-DeclarativeBase.metadata.create_all(bind=engine)
+# DeclarativeBase.metadata.create_all(bind=engine)
 # DeclarativeBase.metadata.create_all(bind=engine)
 # DeclarativeBase.metadata.tables['victims'].create(bind=engine)
 # session.commit()
@@ -121,11 +121,12 @@ DeclarativeBase.metadata.create_all(bind=engine)
 #     udp_count = Column('udp_count', Integer)
 #     icmp_count = Column('icmp_count', Integer)
 
-# query = session.query(UniqueVictims.lat, UniqueVictims.long).distinct().all()
-# unique_loc = []
+
+# query = session.query(UniqueVictims).all()
+# unique_ = []
 # count = 0
 # for q in query:
-#     victims = session.query(UniqueVictims).filter_by(lat=q.lat, long=q.long).all()
+#     victims = session.query(Victims).all()
 #     tcp_total = udp_total = icmp_total = 0
 #     ip_count = len(victims)
 #     for victim in victims:
@@ -133,12 +134,24 @@ DeclarativeBase.metadata.create_all(bind=engine)
 #         tcp_total += session.query(func.sum(Victims.tcp_count).filter(Victims.ip == victim.ip)).scalar()
 #         udp_total += session.query(func.sum(Victims.udp_count).filter(Victims.ip == victim.ip)).scalar()
 #         icmp_total += session.query(func.sum(Victims.icmp_count).filter(Victims.ip == victim.ip)).scalar()
-#     unique_loc.append(UniqueLocation(q.lat, q.long, ip_count, tcp_total, udp_total, icmp_total))
 #     count += 1
 #     print("Done with {}".format(count))
 #
 # session.bulk_save_objects(unique_loc)
 # session.commit()
+
+# unique_victims = session.query(UniqueVictims).all()
+#
+# for v in unique_victims:
+#     current_victim = v
+#     v_ip = current_victim.ip
+#     unique_victims = session.query(Victims).filter_by(ip=v_ip).all()
+#     v.time_frame_count = session.query(func.count(Victims).filter(Victims.ip == v_ip)).scalar()
+#     v.tcp_total += session.query(func.sum(Victims.tcp_count).filter(Victims.ip == v_ip)).scalar()
+#     v.udp_total += session.query(func.sum(Victims.udp_count).filter(Victims.ip == v_ip)).scalar()
+#     v.icmp_total += session.query(func.sum(Victims.icmp_count).filter(Victims.ip == v_ip)).scalar()
+#
+
 # q = session.query(Victims.ip.distinct().label("ip"))
 #
 # ips = [row.ip for row in q.all()]

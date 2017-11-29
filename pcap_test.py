@@ -1,19 +1,13 @@
-import datetime
 import socket
 import sys
 import time
-import os
 
 import dpkt
-from dpkt.udp import UDP
-from dpkt.icmp import ICMP
 from dpkt.compat import compat_ord
 
-from attack import AttackEvents
 from attack import Events
 
 from db import session
-import db
 from db import Victims, Timeframes, UniqueVictims
 
 from sqlalchemy.exc import IntegrityError
@@ -117,33 +111,6 @@ class ProcessPcap:
                 print("The keys already exist in the database")
                 return
 
-# def add_ddos(self):
-#     """
-#     Adds the current time frame and all DDoS occurences for the given time frame to the database
-#
-#     :return:
-#     """
-#     ddos_events = self.ddos_occurrences[self.current_event.start_time]
-#     ip_total, tcp_total, udp_total, icmp_total = self.totals(ddos_events)
-#     timeframe = Timeframes(timeframe=self.current_event.start_time, tcp=tcp_total,
-#                            udp=udp_total, icmp=icmp_total, ip=ip_total)
-#     if self.session.query(Timeframes).filter_by(timeframe=self.current_event.start_time).first():
-#         return
-#     else:
-#         try:
-#             self.session.add(timeframe)
-#             self.session.commit()
-#             attack_objects = []
-#             for ddos in ddos_events:
-#                 attack_objects.append(Victims(timeframe=self.current_event.start_time, ip=ddos.ip, tcp=ddos.tcp_count,
-#                                        udp=ddos.udp_count, icmp=ddos.icmp_count))
-#             self.session.bulk_save_objects(attack_objects)
-#             self.session.commit()
-#         except IntegrityError as e:
-#             print("Integrity Error occurred when inserting new timeframe or ddos objects")
-#             print("The keys already exist in the database")
-#             return
-
     def totals(self, ddoses):
         ip_total = tcp_total = udp_total = icmp_total = 0
         for k, sources in ddoses.items():
@@ -153,16 +120,6 @@ class ProcessPcap:
                 icmp_total += s.icmp_count
                 ip_total += 1
         return ip_total, tcp_total, udp_total, icmp_total
-
-
-    # def totals(self, ddoses):
-    #     ip_total = tcp_total = udp_total = icmp_total = 0
-    #     for ddos in ddoses:
-    #         ip_total += 1
-    #         tcp_total += ddos.tcp_count
-    #         udp_total += ddos.udp_count
-    #         icmp_total += ddos.icmp_count
-    #     return ip_total, tcp_total, udp_total, icmp_total
 
 
 def mac_addr(address):

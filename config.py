@@ -4,5 +4,5 @@ DATABASE = {
     'port': '5432',
     'username': 'postgres',
     'password': 'password',
-    'database': 'ddos3'
+    'database': 'ddos4'
 }

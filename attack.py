@@ -76,12 +76,17 @@ class Source:
 
     def detect_protocol(self, data):
         if isinstance(data, TCP):
-            self.tcp()
+            # Check if response from victim is TCP SYN/ACK or TCP ACK
+            if data.flags & dpkt.tcp.TH_ACK and data.flags & dpkt.tcp.TH_SYN or data.flags & dpkt.tcp.TH_ACK:
+                self.tcp()
         elif isinstance(data, ICMP):
+            # Check if response from victim is ICMP UNREACH PORT, if so, mark as UDP flooding
             if data.type is dpkt.icmp.ICMP_UNREACH_PORT:
                 self.udp()
             else:
-                self.icmp()
+                # Check if ICMP Echo reply or ICMP Timestamp reply
+                if data.type is dpkt.icmp.ICMP_ECHOREPLY or data.type is dpkt.icmp.ICMP_TSTAMPREPLY:
+                    self.icmp()
         elif isinstance(data, UDP):
             self.udp()
 
